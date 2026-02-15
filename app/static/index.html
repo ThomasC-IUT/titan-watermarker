@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Titan Visual Watermarker — Selective Zones & Preview</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0b0f;
+            --bg-secondary: #12141c;
+            --bg-card: #181a24;
+            --bg-card-hover: #1e2030;
+            --border: #2a2d3e;
+            --border-active: #4f46e5;
+            --text-primary: #e8eaf0;
+            --text-secondary: #8b8fa3;
+            --text-muted: #555870;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.25);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.2);
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --radius: 12px;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .header .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px 40px;
+            width: 100%;
+            flex: 1;
+        }
+
+        /* ── Sidebar Controls ── */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .card h2 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .dropzone {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 30px 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .dropzone:hover {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .dropzone p {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .file-info {
+            margin-top: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            resize: none;
+        }
+
+        .toggle-btn {
+            display: flex;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border);
+        }
+
+        .toggle-btn button {
+            flex: 1;
+            border: none;
+            padding: 8px;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn button.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-preview {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            margin-bottom: 10px;
+        }
+
+        .btn-apply {
+            background: linear-gradient(135deg, var(--accent), #818cf8);
+            color: white;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            opacity: 0.9;
+        }
+
+        /* ── Viewer ── */
+        .viewer-container {
+            position: relative;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 600px;
+        }
+
+        .viewer-toolbar {
+            padding: 10px 20px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-nav {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .page-nav button {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .page-nav span {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .viewer-content {
+            flex: 1;
+            position: relative;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px;
+        }
+
+        #doc-canvas {
+            max-width: 100%;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+            background: white;
+        }
+
+        /* ── ROI Overlay ── */
+        #roi-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .roi-box {
+            position: absolute;
+            border: 2px dashed var(--accent);
+            background: rgba(99, 102, 241, 0.1);
+            cursor: move;
+            pointer-events: all;
+            transition: border-style 0.2s, background 0.2s;
+        }
+
+        .roi-box.active {
+            border: 2px solid var(--accent);
+            background: rgba(99, 102, 241, 0.2);
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+            z-index: 10;
+        }
+
+        .roi-box .label {
+            position: absolute;
+            top: -22px;
+            left: -2px;
+            background: var(--accent);
+            color: white;
+            padding: 2px 8px;
+            font-size: 10px;
+            font-weight: 800;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .roi-box .delete-btn {
+            position: absolute;
+            top: -22px;
+            right: -2px;
+            background: var(--danger);
+            color: white;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            border: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .roi-box.active .delete-btn {
+            opacity: 1;
+        }
+
+        .resizer {
+            width: 12px;
+            height: 12px;
+            background: white;
+            border: 2px solid var(--accent);
+            position: absolute;
+            bottom: -6px;
+            right: -6px;
+            cursor: nwse-resize;
+            border-radius: 50%;
+            display: none;
+        }
+
+        .roi-box.active .resizer {
+            display: block;
+        }
+
+        .zone-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .zone-controls .btn-small {
+            flex: 1;
+            padding: 8px;
+            font-size: 11px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .zone-controls .btn-small:hover {
+            border-color: var(--accent);
+            color: var(--text-primary);
+        }
+
+        /* ── Modal Result (Hidden as we go direct) ── */
+        .modal {
+            display: none;
+        }
+
+        #preview-loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 30px;
+            display: none;
+            z-index: 100;
+            backdrop-filter: blur(4px);
+            border: 1px solid var(--border);
+            font-size: 13px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Titan Visual Watermarker <span style="font-weight:300; opacity:0.6;">v2.2</span></h1>
+        <p class="subtitle">Intelligent Watermarking with Multi-Zones & Direct Preview</p>
+    </div>
+
+    <div class="main-layout">
+        <div class="controls">
+            <div class="card">
+                <h2>📁 Document</h2>
+                <div class="dropzone" id="dropzone">
+                    <p>Drag and drop your file here<br>(PDF, JPG, PNG, WEBP)</p>
+                    <div class="file-info" id="file-info">No file selected</div>
+                    <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none">
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>💬 Configuration</h2>
+                <div class="form-group">
+                    <label>Watermark Message</label>
+                    <textarea id="message" rows="3" placeholder="CONFIDENTIAL"></textarea>
+                </div>
+
+                <label
+                    style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px; display:block;">Application
+                    Method</label>
+                <div class="toggle-btn">
+                    <button class="active" id="btn-mode-global">Full Page</button>
+                    <button id="btn-mode-roi">Specific Zones</button>
+                </div>
+
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>Watermark Thickness</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="range" id="thickness" min="0" max="1" step="0.1" value="0.7" style="flex: 1;">
+                        <span id="thickness-val"
+                            style="font-size: 12px; color: var(--text-secondary); min-width: 30px;">70%</span>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>Global Opacity</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="range" id="intensity" min="0" max="1" step="0.1" value="1.0" style="flex: 1;">
+                        <span id="intensity-val"
+                            style="font-size: 12px; color: var(--text-secondary); min-width: 30px;">100%</span>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 15px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="grayscale-check" style="width: 20px; height: 20px;">
+                        <span>Black & White Output</span>
+                    </label>
+                </div>
+
+                <div id="roi-mgmt" style="display:none">
+                    <div class="zone-controls">
+                        <button class="btn-small" id="add-zone">+ Add Zone</button>
+                        <button class="btn-small" id="clear-zones" style="color:var(--danger)">Clear All</button>
+                    </div>
+                </div>
+
+                <button class="btn btn-preview" id="btn-preview" disabled>👁️ Preview</button>
+                <button class="btn btn-apply" id="btn-apply" disabled>⚡ Apply & Export</button>
+            </div>
+
+            <div class="card" id="status-card" style="display:none">
+                <p id="status-text" style="font-size:12px; color:var(--text-secondary); text-align:center;"></p>
+            </div>
+        </div>
+
+        <div class="viewer-container">
+            <div class="viewer-toolbar">
+                <span id="doc-title"
+                    style="font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Titan
+                    Viewer</span>
+                <div class="page-nav" id="pdf-nav" style="display:none">
+                    <button id="prev-page">←</button>
+                    <span id="page-info">Page 1 / 1</span>
+                    <button id="next-page">→</button>
+                </div>
+            </div>
+
+            <div class="viewer-content" id="viewer-content">
+                <div id="preview-loader">Processing...</div>
+                <div style="position:relative;">
+                    <canvas id="doc-canvas"></canvas>
+                    <div id="roi-overlay"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const state = {
+            file: null,
+            pdf: null,
+            currentPage: 1,
+            totalPages: 1,
+            mode: 'global',
+            zones: [], // {id, page_index, x, y, w, h}
+            activeZoneId: null,
+            scale: 1,
+            originalWidth: 0,
+            originalHeight: 0,
+            thickness: 0.7,
+            intensity: 1.0,
+            grayscale: false
+        };
+
+        const elements = {
+            dropzone: document.getElementById('dropzone'),
+            fileInput: document.getElementById('file-input'),
+            fileInfo: document.getElementById('file-info'),
+            canvas: document.getElementById('doc-canvas'),
+            ctx: document.getElementById('doc-canvas').getContext('2d'),
+            roiOverlay: document.getElementById('roi-overlay'),
+            pdfNav: document.getElementById('pdf-nav'),
+            pageInfo: document.getElementById('page-info'),
+            btnPrev: document.getElementById('prev-page'),
+            btnNext: document.getElementById('next-page'),
+            btnModeGlobal: document.getElementById('btn-mode-global'),
+            btnModeRoi: document.getElementById('btn-mode-roi'),
+            btnPreview: document.getElementById('btn-preview'),
+            btnApply: document.getElementById('btn-apply'),
+            loader: document.getElementById('preview-loader'),
+            message: document.getElementById('message'),
+            roiMgmt: document.getElementById('roi-mgmt'),
+            btnAddZone: document.getElementById('add-zone'),
+            btnClearZones: document.getElementById('clear-zones'),
+            thicknessSlider: document.getElementById('thickness'),
+            thicknessVal: document.getElementById('thickness-val'),
+            intensitySlider: document.getElementById('intensity'),
+            intensityVal: document.getElementById('intensity-val'),
+            grayscaleCheck: document.getElementById('grayscale-check')
+        };
+
+        // ── File Management ──
+        elements.dropzone.onclick = () => elements.fileInput.click();
+        elements.fileInput.onchange = (e) => handleFile(e.target.files[0]);
+
+        elements.thicknessSlider.oninput = (e) => {
+            state.thickness = parseFloat(e.target.value);
+            elements.thicknessVal.textContent = Math.round(state.thickness * 100) + '%';
+        };
+
+        elements.intensitySlider.oninput = (e) => {
+            state.intensity = parseFloat(e.target.value);
+            elements.intensityVal.textContent = Math.round(state.intensity * 100) + '%';
+        };
+
+        elements.grayscaleCheck.onchange = (e) => {
+            state.grayscale = e.target.checked;
+        };
+
+        async function handleFile(file) {
+            if (!file) return;
+            state.file = file;
+            state.zones = [];
+            state.activeZoneId = null;
+            elements.fileInfo.textContent = file.name;
+            elements.btnPreview.disabled = false;
+            elements.btnApply.disabled = false;
+
+            if (file.type === 'application/pdf') {
+                const arrayBuffer = await file.arrayBuffer();
+                state.pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                state.totalPages = state.pdf.numPages;
+                state.currentPage = 1;
+                elements.pdfNav.style.display = 'flex';
+                renderPage(1);
+            } else {
+                elements.pdfNav.style.display = 'none';
+                renderImage(file);
+            }
+        }
+
+        async function renderPage(num) {
+            const page = await state.pdf.getPage(num);
+            const viewport = page.getViewport({ scale: 1.5 });
+            state.scale = viewport.scale;
+
+            elements.canvas.height = viewport.height;
+            elements.canvas.width = viewport.width;
+            state.originalWidth = page.view[2];
+            state.originalHeight = page.view[3];
+
+            await page.render({ canvasContext: elements.ctx, viewport: viewport }).promise;
+            renderZones();
+            elements.pageInfo.textContent = `Page ${num} / ${state.totalPages}`;
+        }
+
+        function renderImage(file) {
+            const img = new Image();
+            img.onload = () => {
+                const maxW = 1000;
+                const scale = Math.min(1, maxW / img.width);
+                state.scale = scale;
+                elements.canvas.width = img.width * scale;
+                elements.canvas.height = img.height * scale;
+                state.originalWidth = img.width;
+                state.originalHeight = img.height;
+                elements.ctx.drawImage(img, 0, 0, elements.canvas.width, elements.canvas.height);
+                renderZones();
+            };
+            img.src = URL.createObjectURL(file);
+        }
+
+        function renderZones() {
+            elements.roiOverlay.innerHTML = '';
+            const pageIndex = state.currentPage - 1;
+
+            state.zones.forEach((z, idx) => {
+                if (z.page_index !== pageIndex) return;
+
+                const div = document.createElement('div');
+                div.className = `roi-box ${z.id === state.activeZoneId ? 'active' : ''}`;
+                div.style.left = z.x + 'px';
+                div.style.top = z.y + 'px';
+                div.style.width = z.w + 'px';
+                div.style.height = z.h + 'px';
+                div.innerHTML = `
+                    <div class="label">Zone ${idx + 1}</div>
+                    <button class="delete-btn" onclick="deleteZone('${z.id}'); event.stopPropagation();">×</button>
+                    <div class="resizer"></div>
+                `;
+
+                div.onmousedown = (e) => {
+                    if (e.target.classList.contains('resizer') || e.target.classList.contains('delete-btn')) return;
+                    state.activeZoneId = z.id;
+                    renderZones();
+                    startDrag(e, z);
+                };
+
+                const resizer = div.querySelector('.resizer');
+                resizer.onmousedown = (e) => {
+                    e.stopPropagation();
+                    startResize(e, z);
+                };
+
+                elements.roiOverlay.appendChild(div);
+            });
+        }
+
+        function addZone() {
+            const id = 'z_' + Date.now();
+            state.zones.push({
+                id: id,
+                page_index: state.currentPage - 1,
+                x: 100,
+                y: 100,
+                w: 200,
+                h: 120
+            });
+            state.activeZoneId = id;
+            renderZones();
+        }
+
+        function deleteZone(id) {
+            state.zones = state.zones.filter(z => z.id !== id);
+            if (state.activeZoneId === id) state.activeZoneId = null;
+            renderZones();
+        }
+
+        // ── Interaction Logic ──
+        let currentDragZone = null;
+        let startX, startY;
+        let interactionScaleX = 1;
+        let interactionScaleY = 1;
+
+        function startDrag(e, zone) {
+            currentDragZone = zone;
+            const rect = elements.canvas.getBoundingClientRect();
+            interactionScaleX = elements.canvas.width / rect.width;
+            interactionScaleY = elements.canvas.height / rect.height;
+
+            // Mouse in canvas logical space
+            const mouseX = (e.clientX - rect.left) * interactionScaleX;
+            const mouseY = (e.clientY - rect.top) * interactionScaleY;
+
+            startX = mouseX - zone.x;
+            startY = mouseY - zone.y;
+            window.addEventListener('mousemove', handleDrag);
+            window.addEventListener('mouseup', stopInteraction);
+        }
+
+        function handleDrag(e) {
+            if (!currentDragZone) return;
+            const rect = elements.canvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left) * interactionScaleX;
+            const mouseY = (e.clientY - rect.top) * interactionScaleY;
+
+            currentDragZone.x = Math.max(0, Math.min(elements.canvas.width - currentDragZone.w, mouseX - startX));
+            currentDragZone.y = Math.max(0, Math.min(elements.canvas.height - currentDragZone.h, mouseY - startY));
+            renderZones();
+        }
+
+        function startResize(e, zone) {
+            currentDragZone = zone;
+            const rect = elements.canvas.getBoundingClientRect();
+            interactionScaleX = elements.canvas.width / rect.width;
+            interactionScaleY = elements.canvas.height / rect.height;
+
+            startX = e.clientX;
+            startY = e.clientY;
+            window.addEventListener('mousemove', handleResize);
+            window.addEventListener('mouseup', stopInteraction);
+        }
+
+        function handleResize(e) {
+            if (!currentDragZone) return;
+            const dx = (e.clientX - startX) * interactionScaleX;
+            const dy = (e.clientY - startY) * interactionScaleY;
+
+            currentDragZone.w = Math.max(50, Math.min(elements.canvas.width - currentDragZone.x, currentDragZone.w + dx));
+            currentDragZone.h = Math.max(30, Math.min(elements.canvas.height - currentDragZone.y, currentDragZone.h + dy));
+            startX = e.clientX;
+            startY = e.clientY;
+            renderZones();
+        }
+
+        function stopInteraction() {
+            currentDragZone = null;
+            window.removeEventListener('mousemove', handleDrag);
+            window.removeEventListener('mousemove', handleResize);
+            window.removeEventListener('mouseup', stopInteraction);
+        }
+
+        // ── Controls ──
+        elements.btnAddZone.onclick = addZone;
+        elements.btnClearZones.onclick = () => { state.zones = []; state.activeZoneId = null; renderZones(); };
+
+        elements.btnPrev.onclick = () => { if (state.currentPage > 1) renderPage(--state.currentPage); };
+        elements.btnNext.onclick = () => { if (state.currentPage < state.totalPages) renderPage(++state.currentPage); };
+
+        elements.btnModeGlobal.onclick = () => {
+            state.mode = 'global';
+            elements.btnModeGlobal.classList.add('active');
+            elements.btnModeRoi.classList.remove('active');
+            elements.roiMgmt.style.display = 'none';
+            elements.roiOverlay.style.display = 'none';
+        };
+
+        elements.btnModeRoi.onclick = () => {
+            state.mode = 'roi';
+            elements.btnModeRoi.classList.add('active');
+            elements.btnModeGlobal.classList.remove('active');
+            elements.roiMgmt.style.display = 'block';
+            elements.roiOverlay.style.display = 'block';
+            if (state.zones.length === 0) addZone();
+            renderZones();
+        };
+
+        // ── Preview & Apply ──
+        elements.btnPreview.onclick = async () => {
+            if (!state.file) return;
+            elements.loader.style.display = 'block';
+
+            const form = new FormData();
+            form.append('file', state.file);
+            form.append('message', elements.message.value || 'CONFIDENTIAL');
+            form.append('page_index', state.currentPage - 1);
+            form.append('thickness', state.thickness);
+            form.append('intensity', state.intensity);
+            form.append('grayscale', state.grayscale);
+
+            if (state.mode === 'roi') {
+                const zones = state.zones.map(z => ({
+                    page_index: z.page_index,
+                    x_perc: z.x / elements.canvas.width,
+                    y_perc: z.y / elements.canvas.height,
+                    w_perc: z.w / elements.canvas.width,
+                    h_perc: z.h / elements.canvas.height
+                }));
+                form.append('zones', JSON.stringify(zones));
+            }
+
+            try {
+                const resp = await fetch('/api/preview', { method: 'POST', body: form });
+                if (!resp.ok) throw new Error('Preview error');
+
+                const blob = await resp.blob();
+                const img = new Image();
+                img.onload = () => {
+                    elements.ctx.drawImage(img, 0, 0, elements.canvas.width, elements.canvas.height);
+                    elements.loader.style.display = 'none';
+                };
+                img.src = URL.createObjectURL(blob);
+            } catch (err) {
+                alert(err.message);
+                elements.loader.style.display = 'none';
+            }
+        };
+
+        elements.btnApply.onclick = async () => {
+            if (!state.file) return;
+            elements.btnApply.disabled = true;
+            document.getElementById('status-card').style.display = 'block';
+            document.getElementById('status-text').textContent = '⚡ Applying watermark...';
+
+            const form = new FormData();
+            form.append('file', state.file);
+            form.append('message', elements.message.value || 'CONFIDENTIAL');
+            form.append('thickness', state.thickness);
+            form.append('intensity', state.intensity);
+            form.append('grayscale', state.grayscale);
+
+            if (state.mode === 'roi') {
+                const zones = state.zones.map(z => ({
+                    page_index: z.page_index,
+                    x_perc: z.x / elements.canvas.width,
+                    y_perc: z.y / elements.canvas.height,
+                    w_perc: z.w / elements.canvas.width,
+                    h_perc: z.h / elements.canvas.height
+                }));
+                form.append('zones', JSON.stringify(zones));
+            }
+
+            try {
+                const resp = await fetch('/api/watermark', { method: 'POST', body: form });
+                if (!resp.ok) throw new Error('Erreur lors du traitement');
+
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `titan_${state.file.name}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                elements.btnApply.disabled = false;
+                document.getElementById('status-card').style.display = 'none';
+            }
+        };
+    </script>
+</body>
+
+</html>

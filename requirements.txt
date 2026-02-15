@@ -1,0 +1,20 @@
+# FastAPI & Server
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# Image Processing
+opencv-python-headless==4.10.0.84
+numpy==2.2.2
+Pillow==11.1.0
+
+# PDF Processing
+pdf2image==1.17.0
+reportlab==4.2.5
+pypdf==5.2.0
+
+# Content Type Detection
+python-magic==0.4.27
+
+# Jinja2 for HTML templates
+jinja2==3.1.5
