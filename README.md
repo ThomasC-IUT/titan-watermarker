@@ -53,11 +53,16 @@ Instead of a fixed color, Titan's "ink" is a relative shadowing of the local doc
 
 ## ✨ Features Showcase
 
-````carousel
-![Selective Zone Protection](docs/assets/titan_selective.png)
-<!-- slide -->
-![Full Page Security Waves](docs/assets/titan_full_waves.png)
-````
+<table>
+<tr>
+<td width="50%">
+<img src="docs/assets/titan_selective.png" alt="Selective Zone Protection">
+</td>
+<td width="50%">
+<img src="docs/assets/titan_full_waves.png" alt="Full Page Security Waves">
+</td>
+</tr>
+</table>
 
 - **Multi-Zone Selective Watermarking**: Protect sensitive areas like signatures or bank details specifically.
 - **Full-Page Wave Interference**: Create a global density that makes mass reconstruction computationally expensive for AI.
@@ -78,11 +83,12 @@ Instead of a fixed color, Titan's "ink" is a relative shadowing of the local doc
    ```bash
    docker-compose up -d --build
    ```
-3. Access the dashboard at **[http://localhost:8000](http://localhost:8000)**.
+3. Access the dashboard at **[http://localhost:8000](http://localhost:8000)**
 
 ## 📖 Technical Deep Dive
 For a full breakdown of the algorithms, see the [Technical Specifications](specifications.md).
 
 ---
 *Developed for professionals requiring high-assurance document protection in the era of Generative AI.*
+
 Tip: Test your documents with tools such as https://visualgpt.io/watermark-remover
